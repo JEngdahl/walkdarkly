@@ -8,7 +8,7 @@
 
 use std::f64;
 
-/// Calculate the length of a fully shaded area
+/// Calculate the length of a shadow
 ///
 /// In a 2D plane, given a wall and the angle of incidence of the sun,
 /// we need to find out what horizontal distance along the ground is
@@ -56,9 +56,10 @@ use std::f64;
 ///
 /// So, x = (h1 / tan(Θ)) - (h2 / tan(Θ)) = (1/tan(Θ)) * (h1 - h2)
 ///
-/// The units don't matter as long as they are the same.
+/// The units of height don't matter as long as they are the same.
+/// The angle should be in radians.
 ///
-pub fn full_shadow_len_rad<H1, H2, Theta>(h1: H1, h2: H2, theta: Theta) -> f64
+pub fn fully_shaded_len<H1, H2, Theta>(h1: H1, h2: H2, theta: Theta) -> f64
 where
     H1: Into<f64>,
     H2: Into<f64>,
@@ -71,13 +72,26 @@ where
         (1.0 / tan).abs() * (h1.into() - h2.into())
     }
 }
-pub fn full_shadow_len_deg<H1, H2, Theta>(h1: H1, h2: H2, theta: Theta) -> f64
+
+
+/// Get the shaded area of a rectangular structure of a given height
+///
+/// This just a simple extension of the above to get the rectangular
+/// shaded area for a structure of a given length.
+pub fn fully_shaded_area<Len, H1, H2, Theta>(len: Len, h1: H1, h2: H2, theta: Theta) -> f64
 where
+    Len: Into<f64>,
     H1: Into<f64>,
     H2: Into<f64>,
     Theta: Into<f64>,
 {
-    full_shadow_len_rad(h1, h2, theta.into().to_radians())
+    len.into() * fully_shaded_len(h1, h2, theta)
+}
+
+
+/// Convert degrees to radians
+pub fn deg_to_rad<D: Into<f64>>(deg: D) -> f64 {
+    deg.into().to_radians()
 }
 
 
@@ -106,77 +120,70 @@ mod tests {
         One: Into<f64>,
         Two: Into<f64>,
     {
-        let abs_diff = (one.into() - two.into()).abs();
-        assert!(abs_diff < 1e-10);
+        assert!(approx_equal(one, two));
     }
 
     #[test]
-    fn shadow_rad_45() {
+    fn shadow_len_45() {
         // tan(π/4) = tan(45°) = 1, so this is just h1 - h2
-        let shadow_len = full_shadow_len_rad(1000.0, 100.0, PI / 4.0);
+        let shadow_len = fully_shaded_len(1000.0, 100.0, PI / 4.0);
         assert_approx(shadow_len, 900);
     }
 
     #[test]
-    fn shadow_deg_45() {
+    fn shadow_area_45() {
         // tan(π/4) = tan(45°) = 1, so this is just h1 - h2
-        let shadow_len = full_shadow_len_deg(1000.0, 100.0, 45.0);
-        assert_approx(shadow_len, 900);
+        let area = fully_shaded_area(10, 1000, 100, PI / 4.0);
+        assert_approx(area, 9000);
     }
 
     #[test]
-    fn shadow_rad_0() {
+    fn shadow_len_0() {
         // tan(0) = tan(0°) = 0, so we have infinite shadow
-        let shadow_len = full_shadow_len_rad(1000, 100, 0);
+        let shadow_len = fully_shaded_len(1000, 100, 0);
         assert_eq!(shadow_len, f64::INFINITY);
     }
 
     #[test]
-    fn shadow_deg_0() {
+    fn shadow_area_0() {
         // tan(0) = tan(0°) = 0, so we have infinite shadow
-        let shadow_len = full_shadow_len_deg(1000, 100, 0);
-        assert_eq!(shadow_len, f64::INFINITY);
+        let area = fully_shaded_area(10, 1000, 100, 0);
+        assert_eq!(area, f64::INFINITY);
     }
 
     #[test]
-    fn shadow_rad_180() {
+    fn shadow_len_180() {
         // tan(π) = tan(180°) = 0, so we have infinite shadow
-        let shadow_len = full_shadow_len_rad(1000, 100, PI);
+        let shadow_len = fully_shaded_len(1000, 100, PI);
         assert_eq!(shadow_len, f64::INFINITY);
     }
 
     #[test]
-    fn shadow_deg_180() {
+    fn shadow_area_180() {
         // tan(π) = tan(180°) = 0, so we have infinite shadow
-        let shadow_len = full_shadow_len_deg(1000, 100, 180);
-        assert_eq!(shadow_len, f64::INFINITY);
+        let area = fully_shaded_area(10, 1000, 100, PI);
+        assert_eq!(area, f64::INFINITY);
     }
 
     #[test]
-    fn shadow_rad_90() {
+    fn shadow_len_90() {
         // tan(π/2) = tan(90) = ∞, so this is noon, no shadow
-        let shadow_len = full_shadow_len_rad(1000.0, 100.0, PI / 2.0);
+        let shadow_len = fully_shaded_len(1000.0, 100.0, PI / 2.0);
         assert_approx(shadow_len, 0);
     }
 
     #[test]
-    fn shadow_deg_90() {
+    fn shadow_area_90() {
         // tan(π/2) = tan(90) = ∞, so this is noon, no shadow
-        let shadow_len = full_shadow_len_deg(1000.0, 100.0, 90);
-        assert_approx(shadow_len, 0);
+        let area = fully_shaded_area(10, 1000.0, 100.0, PI / 2.0);
+        assert_approx(area, 0);
     }
 
     #[test]
-    fn shadow_rad_ints() {
+    fn shadow_len_ints() {
         // tan(π/4) = tan(45°) = 1, so this is just h1 - h2
-        let shadow_len = full_shadow_len_rad(1000, 100, PI / 4.0);
+        let shadow_len = fully_shaded_len(1000, 100, PI / 4.0);
         assert_approx(shadow_len, 900);
     }
 
-    #[test]
-    fn shadow_deg_ints() {
-        // tan(π/4) = tan(45°) = 1, so this is just h1 - h2
-        let shadow_len = full_shadow_len_deg(1000, 100, 45);
-        assert_approx(shadow_len, 900);
-    }
 }
